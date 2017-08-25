@@ -78,8 +78,10 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'sqst',
         'USER': 'sqst',
-        'PASSWORD': 'sqst.Pws.1#',
-        'HOST': '/var/lib/mysql/mysql.sock',
+#        'PASSWORD': 'sqst.Pws.1#',
+        'PASSWORD': 'sqst1#',
+#        'HOST': '/var/lib/mysql/mysql.sock',
+        'HOST': 'localhost',
         'PORT': '3306',
 	'OPTIONS' : {
 	    'autocommit' : True,

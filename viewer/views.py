@@ -1,7 +1,9 @@
 from django.shortcuts import render
 from django.db.models import Max, Sum, Count
+from django.http import HttpResponseRedirect
 
 from . import models
+from . import forms
 
 METRICS = 6
 
@@ -48,3 +50,19 @@ def detail(request, project):
 		'entries' : entries
 	}
 	return render(request, 'viewer/detail.html', context)
+
+
+def capture(request):
+	projects = models.Project.objects.all().order_by('-priority')
+	if request.method == 'POST':
+		form = forms.MetricsForm(request.POST)
+		print 'is valid %s' % form.is_valid() 
+		for field in form:
+			print ('%s %s') % (field, field.errors)
+		if form.is_valid():
+			print 'Llego aqui'
+			return HttpResponseRedirect('/viewer')
+	else:
+		form = forms.MetricsForm()
+
+	return render(request, 'viewer/form.html', {'form': form, 'projects': projects})
