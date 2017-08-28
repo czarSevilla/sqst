@@ -55,7 +55,7 @@ def detail(request, customer_id, project_id):
 	statuses = models.Issue.objects.filter(project=project_id).values('status__description').annotate(count_issues=Count('status'))
 	summary = []
 	for row in statuses:
-		summary.append(SummaryStatus(row['status__description'], row['count_issues'], row['count_issues'] / total['total']))
+		summary.append(SummaryStatus(row['status__description'], row['count_issues'], float(row['count_issues']) / total['total']))
 	if len(summary) == 0:
 		summary.append(SummaryStatus('', 0, 0))
 	created = models.Issue.objects.filter(project=project_id).values('created').annotate(count=Count('id')).order_by('created')	
