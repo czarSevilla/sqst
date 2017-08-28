@@ -1,11 +1,19 @@
 from django.shortcuts import render
 from django.db.models import Max, Sum, Count
 from django.http import HttpResponseRedirect
+from datetime import datetime
 
 from . import models
 from . import forms
 
 METRICS = 6
+
+METRIC_SIZE = 'Size'
+METRIC_BUGS = 'Bugs'
+METRIC_VULNERABILITIES = 'Vulnerabilities'
+METRIC_CODE_SMELLS = 'Code Smells'
+METRIC_DUPLICATED = 'Duplicated Block'
+METRIC_COMPLEXITY = 'Complexity'
 
 class MetricInfo(object):
 
@@ -55,13 +63,62 @@ def detail(request, project):
 def capture(request):
 	projects = models.Project.objects.all().order_by('-priority')
 	if request.method == 'POST':
-		form = forms.MetricsForm(request.POST)
-		print 'is valid %s' % form.is_valid() 
-		for field in form:
-			print ('%s %s') % (field, field.errors)
+		form = forms.MetricsForm(request.POST)		
 		if form.is_valid():
-			print 'Llego aqui'
-			return HttpResponseRedirect('/viewer')
+			
+			project = models.Project.objects.get(pk=form.cleaned_data['project_id'])
+			str_date_time = '%s %s' % (form.cleaned_data['date'], form.cleaned_data['time'][0:5])			
+			date_time = datetime.strptime(str_date_time, '%d/%m/%Y %H:%M')
+			# Metric Size
+			metric = models.Metric.objects.get(description = METRIC_SIZE)
+			entry = models.Entry()
+			entry.project = project
+			entry.metric = metric
+			entry.date = date_time
+			entry.value = int(form.cleaned_data['size'])
+			entry.save()
+			# Metric Bugs
+			metric = models.Metric.objects.get(description = METRIC_BUGS)
+			entry = models.Entry()
+			entry.project = project
+			entry.metric = metric
+			entry.date = date_time
+			entry.value = int(form.cleaned_data['bugs'])
+			entry.save()
+			# Metric Vulnerabilities
+			metric = models.Metric.objects.get(description = METRIC_VULNERABILITIES)
+			entry = models.Entry()
+			entry.project = project
+			entry.metric = metric
+			entry.date = date_time
+			entry.value = int(form.cleaned_data['vulnerabilities'])			
+			entry.save()
+			# Metric Code Smells
+			metric = models.Metric.objects.get(description = METRIC_CODE_SMELLS)
+			entry = models.Entry()
+			entry.project = project
+			entry.metric = metric
+			entry.date = date_time
+			entry.value = int(form.cleaned_data['smells'])			
+			entry.save()
+			# Metric Duplicated Block
+			metric = models.Metric.objects.get(description = METRIC_DUPLICATED)
+			entry = models.Entry()
+			entry.project = project
+			entry.metric = metric
+			entry.date = date_time
+			entry.value = int(form.cleaned_data['dup_blocks'])			
+			entry.save()
+			# Metric Complexity
+			metric = models.Metric.objects.get(description = METRIC_COMPLEXITY)
+			entry = models.Entry()
+			entry.project = project
+			entry.metric = metric
+			entry.date = date_time
+			entry.value = int(form.cleaned_data['complexity'])			
+			entry.save()			
+
+			#return HttpResponseRedirect('/viewer')
 	else:
 		form = forms.MetricsForm()
 
