@@ -156,8 +156,9 @@ def load_csv(request):
 			    destination.write(line)
 			source.close()
 			destination.close()
+			entities = []
 			with open(path) as csvfile:
-				reader = csv.DictReader(csvfile, quotechar='"', doublequote=True)
+				reader = csv.DictReader(csvfile, quotechar='"', doublequote=True)				
 				for row in reader:
 					issueInput = models.IssueInput()
 					issueInput.ref = row['Id']
@@ -175,9 +176,25 @@ def load_csv(request):
 					issueInput.status = row['Estado']
 					issueInput.resolution = row['Resolucion']
 					issueInput.process = issueProcess
-					issueInput.save()
-		return HttpResponseRedirect('step1')
+					entities.append(issueInput)
+				models.IssueInput.objects.bulk_create(entities)
+			issueProcess.imported = True
+			issueProcess.count = len(entities)
+			issueProcess.dateImported = datetime.now()
+			issueProcess.save()
+		return HttpResponseRedirect('step3')
 	else:
 		processes = models.IssueProcess.objects.filter(imported=False)
 		context = {'processes':processes}
 		return render(request, 'quality/step2.html', context)
+
+def process_csv(request):
+	if request.method == 'POST':
+		form = forms.ProcessCvsForm(request.POST)
+		if form.is_valid():
+			issueProcess = models.IssueProcess.objects.get(pk=form.cleaned_data['process_id'])
+	else:
+		processes = models.IssueProcess.objects.filter(imported=True, processed=False)
+		context = {'processes':processes}
+		return render(request, 'quality/step3.html', context)
+
