@@ -69,3 +69,32 @@ class Issue(models.Model):
 
 	def __str__(self):
 		return self.description
+
+class IssueProcess(models.Model):
+	file = models.CharField(max_length=100)
+	source = models.CharField(max_length=100)
+	dateLoaded = models.DateTimeField()
+	imported = models.BooleanField(default=False)
+	count = models.IntegerField(default=0)
+	dateImported = models.DateTimeField(null=True, blank=True)
+	processed = models.BooleanField(default=False)
+	dateProcessed = models.DateTimeField(null=True, blank=True)
+
+
+class IssueInput(models.Model):
+	ref = models.CharField(max_length=20)
+	project = models.CharField(max_length=100)
+	informer = models.CharField(max_length=100)
+	assignee = models.CharField(max_length=100)
+	priority = models.CharField(max_length=50)
+	severity = models.CharField(max_length=50)
+	reproducibility = models.CharField(max_length=50, null=True, blank=True)
+	product = models.CharField(max_length=50, null=True, blank=True)
+	category = models.CharField(max_length=50, null=True, blank=True);
+	delivery_date = models.DateField(null=True, blank=True)
+	updated_date = models.DateField(null=True, blank=True)
+	resume = models.CharField(max_length=200, null=True, blank=True)
+	status = models.CharField(max_length=50, null=True, blank=True)
+	resolution = models.CharField(max_length=50, null=True, blank=True)
+	process = models.ForeignKey(IssueProcess)
+	

@@ -6,6 +6,8 @@ from django.http import HttpResponseRedirect
 from . import models
 from . import forms
 
+import csv
+
 UPLOAD_PATH = 'C:/uploads/';
 
 class SummaryProject(object):
@@ -97,15 +99,52 @@ def detail(request, customer_id, project_id):
 	return render(request, 'quality/detail.html', context)
 
 def import_csv(request):
-
 	if request.method == 'POST':
 		form = forms.UploadCsvForm(request.POST, request.FILES)
 		if form.is_valid():
 			f = request.FILES['file']
-			with open(UPLOAD_PATH + f.name, 'wb+') as destination:
+			path = UPLOAD_PATH + f.name
+			with open(path, 'wb+') as destination:
 				for chunk in f.chunks():
 					destination.write(chunk)
-			return HttpResponseRedirect('/upload_step2')
+			issueProcess = models.IssueProcess()
+			issueProcess.file = f.name
+			issueProcess.source = form.cleaned_data['origen']
+			issueProcess.dateLoaded = datetime.now()
+			issueProcess.save()
+			return HttpResponseRedirect('step2')
 	else:
 		form = forms.UploadCsvForm()
 		return render(request, 'quality/step1.html', {'form':form})
+
+def load_csv(request):
+	if request.method == 'POST':
+		form = forms.ProcessCvsForm(request.POST)
+		if form.is_valid():
+			issueProcess = models.IssueProcess.objects.get(pk=form.cleaned_data['process_id'])
+			path = UPLOAD_PATH + issueProcess.file
+			with open(path) as csvfile:
+				reader = csv.DictReader(csvfile)
+				for row in reader:
+					issueInput = models.IssueInput()
+					issueInput.ref = row['Id']
+					issueInput.project = row['Proyecto']
+					issueInput.informer = row['Informador']
+					issueInput.assignee = row['Asignada a']
+					issueInput.priority = row['Prioridad']
+					issueInput.severity = row['Severidad']
+					issueInput.reproducibility = row['Reproducibilidad']
+					issueInput.product = row['Versión del producto']
+					issueInput.category = row['Categoría']
+					issueInput.delivery_date = row['Fecha de envío']
+					issueInput.updated_date = row['Actualizada']
+					issueInput.resume = row['Resumen']
+					issueInput.status = row['Estado']
+					issueInput.resolution = row['Resolución']
+					issueInput.process = issueProcess
+					issueInput.save()
+					HttpResponseRedirect('step3')
+	else:
+		processes = models.IssueProcess.objects.filter(imported=False)
+		context = {'processes':processes}
+		return render(request, 'quality/step2.html', context)
