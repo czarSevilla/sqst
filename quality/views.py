@@ -1,3 +1,4 @@
+#coding=utf-8
 from django.shortcuts import render
 from django.db.models import Count
 from datetime import datetime, timedelta
@@ -7,6 +8,8 @@ from . import models
 from . import forms
 
 import csv
+import shutil
+import codecs
 
 UPLOAD_PATH = 'C:/uploads/';
 
@@ -123,8 +126,38 @@ def load_csv(request):
 		if form.is_valid():
 			issueProcess = models.IssueProcess.objects.get(pk=form.cleaned_data['process_id'])
 			path = UPLOAD_PATH + issueProcess.file
+			shutil.move(path, path+'~')
+			destination = codecs.open(path, encoding="latin1", mode="w+")
+			source = codecs.open(path+'~', encoding="latin1", mode="r+")
+			for line in source:
+			    if line[0] == '"':
+			        length = len(line)
+			        line = line[1:length-3] + '\r\n'
+			    line = line.replace(unichr(225), 'a')
+			    line = line.replace(unichr(233), 'e')
+			    line = line.replace(unichr(237), 'i')
+			    line = line.replace(unichr(243), 'o')
+			    line = line.replace(unichr(250), 'u')
+			    line = line.replace(unichr(241), 'n')
+			    line = line.replace(unichr(193), 'A')
+			    line = line.replace(unichr(201), 'E')
+			    line = line.replace(unichr(205), 'I')
+			    line = line.replace(unichr(211), 'O')
+			    line = line.replace(unichr(218), 'U')
+			    line = line.replace(unichr(209), 'N')
+			    line = line.replace(unichr(145), '\'')
+			    line = line.replace(unichr(146), '\'')
+			    line = line.replace(unichr(147), '"')
+			    line = line.replace(unichr(148), '"')
+			    line = line.replace(unichr(150), '-')
+			    line = line.replace('""', '"')
+			    if line[len(line)-3] == '"':
+			    	line = line[0:len(line)-3] + '\r\n'
+			    destination.write(line)
+			source.close()
+			destination.close()
 			with open(path) as csvfile:
-				reader = csv.DictReader(csvfile)
+				reader = csv.DictReader(csvfile, quotechar='"', doublequote=True)
 				for row in reader:
 					issueInput = models.IssueInput()
 					issueInput.ref = row['Id']
@@ -134,16 +167,16 @@ def load_csv(request):
 					issueInput.priority = row['Prioridad']
 					issueInput.severity = row['Severidad']
 					issueInput.reproducibility = row['Reproducibilidad']
-					issueInput.product = row['Versión del producto']
-					issueInput.category = row['Categoría']
-					issueInput.delivery_date = row['Fecha de envío']
+					issueInput.product = row['Version del producto']
+					issueInput.category = row['Categoria']
+					issueInput.delivery_date = row['Fecha de envio']
 					issueInput.updated_date = row['Actualizada']
 					issueInput.resume = row['Resumen']
 					issueInput.status = row['Estado']
-					issueInput.resolution = row['Resolución']
+					issueInput.resolution = row['Resolucion']
 					issueInput.process = issueProcess
 					issueInput.save()
-					HttpResponseRedirect('step3')
+		return HttpResponseRedirect('step1')
 	else:
 		processes = models.IssueProcess.objects.filter(imported=False)
 		context = {'processes':processes}
