@@ -1,8 +1,12 @@
 from django.shortcuts import render
 from django.db.models import Count
 from datetime import datetime, timedelta
+from django.http import HttpResponseRedirect
 
 from . import models
+from . import forms
+
+UPLOAD_PATH = 'C:/uploads/';
 
 class SummaryProject(object):
 	def __init__(self, project, closed, opened):
@@ -91,3 +95,17 @@ def detail(request, customer_id, project_id):
 		assignees = [{'assignee__name':'','count':0}]
 	context = {'customer': customer, 'project':project, 'summary':summary, 'tracks':tracks, 'priorities':priorities, 'assignees':assignees}
 	return render(request, 'quality/detail.html', context)
+
+def import_csv(request):
+
+	if request.method == 'POST':
+		form = forms.UploadCsvForm(request.POST, request.FILES)
+		if form.is_valid():
+			f = request.FILES['file']
+			with open(UPLOAD_PATH + f.name, 'wb+') as destination:
+				for chunk in f.chunks():
+					destination.write(chunk)
+			return HttpResponseRedirect('/upload_step2')
+	else:
+		form = forms.UploadCsvForm()
+		return render(request, 'quality/step1.html', {'form':form})
