@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.db.models import Max, Sum, Count
 from django.http import HttpResponseRedirect
 from datetime import datetime
+from django.contrib.auth.decorators import login_required
 
 from . import models
 from . import forms
@@ -59,7 +60,7 @@ def detail(request, project):
 	}
 	return render(request, 'viewer/detail.html', context)
 
-
+@login_required
 def capture(request):
 	projects = models.Project.objects.all().order_by('-priority')
 	if request.method == 'POST':

@@ -1,0 +1,71 @@
+{% extends "quality/base.html" %}
+
+{% block content %}
+
+<div class="row">
+  <div class="col-sm-12 col-md-12 col-lg-12">
+    <div class="h3" style="text-align: center; font-weight: bolder; color: #337ab7">Import Issues Process</div>
+  </div>
+</div>
+<ul class="nav nav-pills nav-justified">
+  <li role="presentation" class="disabled"><a href="#">Upload Csv <span class="glyphicon glyphicon-open-file" style="font-size:3em;"></span></a></li>
+  <li role="presentation" class="disabled"><a href="#">Import <span class="glyphicon glyphicon-import" style="font-size:3em;"></span></a></li>
+  <li role="presentation" class="active"><a href="#">Process <span class="glyphicon glyphicon-refresh" style="font-size:3em;"></span></a></li>
+  <li role="presentation" class="disabled"><a href="#">Finish <span class="glyphicon glyphicon-ok" style="font-size:3em;"></span></a></li>
+</ul>
+<div class="panel panel-default">
+<div class="panel-body">        
+    <div class="col-sm-12 col-md-12 col-lg-12">              
+      <table class="table">
+        <tr>
+          <th>File</th>
+          <th>Source</th>
+          <th>Imported rows</th>
+          <th>Inserted rows</th>
+          <th>Updated rows</th>
+          <th>&nbsp;</th>
+        </tr>
+        
+        <tr>
+          <td>{{process.file}}</td>
+          <td>{{process.source}}</td>
+          <td>{{process.count}}</td>
+          <td>{{process.inserted_count}}</td>
+          <td>{{process.updated_count}}</td>
+          <td>
+            <form action="step5" method="POST">
+              {% csrf_token %}
+              <input type="hidden" name="process_id" value="{{process.id}}" />
+              <input type="submit" value="Finish" class="btn btn-primary" />
+            </form>
+          </td>
+        </tr>                
+      </table>
+    </div> 
+    {% if projects_not_found %}
+    <div class="col-sm-12 col-md-12 col-lg-12">
+      <table class="table table-striped">
+        <tr class="danger"><th>Project not found</th></tr>
+        <tbody>
+        {% for p in projects_not_found %}
+          <tr><td>{{p.project}}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>     
+    {% endif %}
+    {% if inputs_with_error %}
+    <div class="col-sm-12 col-md-12 col-lg-12">
+      <table class="table table-striped">
+        <tr class="danger"><th colspan="3">Inputs with error</th></tr>
+        <tr><th>Ref</th><th>Resume</th><th>Comments</th></tr>
+        {% for iwe in inputs_with_error %}
+          <tr><td>{{iwe.ref}}</td><td>{{iwe.resume}}</td><td>{{iwe.comments}}</td></tr>
+        {% endfor %}
+      </table>
+    </div>                  
+    {% endif %} 
+</div>
+</div>
+
+{% endblock %}

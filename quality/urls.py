@@ -7,4 +7,7 @@ urlpatterns = [
     url(r'^upload/step1', views.import_csv, name="import_csv"),
     url(r'^upload/step2', views.load_csv, name="load_csv"),
     url(r'^upload/step3', views.process_csv, name="process_csv"),
+    url(r'^upload/step4', views.results_csv, name="results_csv"),
+    url(r'^upload/step5', views.finish_csv, name="finish_csv"),
+    url(r'^upload/processed/(?P<process_id>\d+)', views.count_processed, name="count_processed"),
 ]

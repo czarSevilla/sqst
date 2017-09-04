@@ -2,7 +2,11 @@
 from django.shortcuts import render
 from django.db.models import Count
 from datetime import datetime, timedelta
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
+from django.db import connection
+from django.contrib.auth.decorators import login_required
+
+from threading import Thread
 
 from . import models
 from . import forms
@@ -12,6 +16,84 @@ import shutil
 import codecs
 
 UPLOAD_PATH = 'C:/uploads/';
+
+COMMA = ','
+
+NUM_TOKENS = 19
+
+class IssueRow(object):
+
+    def __init__(self, tokens):
+        idx = 0
+        self.id = tokens[idx]
+        idx += 1
+        self.project = tokens[idx]
+        idx += 1
+        self.informer = tokens[idx]
+        idx += 1
+        self.assignee = tokens[idx]
+        idx += 1
+        self.priority = tokens[idx]
+        idx += 1
+        self.severity = tokens[idx]
+        idx += 1
+        self.repro = tokens[idx]
+        idx += 1
+        self.version = tokens[idx]
+        idx += 1
+        self.category = tokens[idx]
+        idx += 1
+        self.creation = tokens[idx]
+        idx += 1
+        self.os = tokens[idx]
+        idx += 1
+        self.os_version = tokens[idx]
+        idx += 1
+        self.platform = tokens[idx]
+        idx += 1
+        self.visibility = tokens[idx]
+        idx += 1
+        self.modification = tokens[idx]
+        idx += 1
+        self.resume = tokens[idx]
+        idx += 1
+        self.status = tokens[idx]
+        idx += 1
+        self.resolution = tokens[idx]
+        idx += 1
+        self.solve = tokens[idx]
+        idx += 1
+
+
+def parse(file_csv):
+    rows = []
+    with codecs.open(file_csv, encoding="latin1", mode="r+") as source:
+        is_first = True        
+        for line in source:
+            if is_first:
+                is_first = False
+            else:
+                line = line.strip()
+                if line[0] == '"':
+                    line = line[1:]
+                if line[-1] == '\t':
+                    line = line[:-1]
+                if line[-1] == '"':
+                    line = line[:-1]
+                if line[-1] == '\'':
+                    line = line[:-2]
+                tokens = line.split(COMMA)
+                if len(tokens) == NUM_TOKENS:
+                    rows.append(IssueRow(tokens))
+                else:
+                    tokens_left = tokens[0:15]
+                    tokens_right = [u'', tokens[-3], tokens[-2], tokens[-1]]
+                    rows.append(IssueRow(tokens_left + tokens_right))
+    return rows
+
+def call_process_issues(process_id):
+	with connection.cursor() as cursor:			
+		cursor.callproc('process_issues', [process_id])
 
 class SummaryProject(object):
 	def __init__(self, project, closed, opened):
@@ -43,8 +125,8 @@ def projects(request, customer_id):
 	stats = []
 	for p in projects:
 		stats.append(SummaryProject(p.name, 0, 0))
-	closed = models.Issue.objects.filter(project__customer_id=customer_id).filter(resolution__isnull=False).values('project__name').annotate(count=Count('id'))
-	opened = models.Issue.objects.filter(project__customer_id=customer_id).filter(resolution__isnull=True).values('project__name').annotate(count=Count('id'))
+	closed = models.Issue.objects.filter(project__customer_id=customer_id).filter(closed__isnull=False).values('project__name').annotate(count=Count('id'))
+	opened = models.Issue.objects.filter(project__customer_id=customer_id).filter(closed__isnull=True).values('project__name').annotate(count=Count('id'))
 	for p in stats:
 		for m in closed:
 			if m['project__name'] == p.project:
@@ -61,19 +143,21 @@ def detail(request, customer_id, project_id):
 	customer = models.Customer.objects.get(pk=customer_id)
 	project = models.Project.objects.get(pk=project_id)
 	total = models.Issue.objects.filter(project=project_id).aggregate(total=Count('id'))
-	statuses = models.Issue.objects.filter(project=project_id).values('status__description').annotate(count_issues=Count('status'))
+	statuses = models.Issue.objects.filter(project=project_id, closed__isnull=True).values('status__description').annotate(count_issues=Count('status'))
 	summary = []
 	for row in statuses:
 		summary.append(SummaryStatus(row['status__description'], row['count_issues'], float(row['count_issues']) / total['total']))
 	if len(summary) == 0:
 		summary.append(SummaryStatus('', 0, 0))
 	created = models.Issue.objects.filter(project=project_id).values('created').annotate(count=Count('id')).order_by('created')	
-	closed = models.Issue.objects.filter(project=project_id).filter(closed__isnull=False).values('closed').annotate(count=Count('id')).order_by('created')	
+	closed = models.Issue.objects.filter(project=project_id).filter(closed__isnull=False).values('closed').annotate(count=Count('id')).order_by('closed')	
 	tracks = []
 	if len(created) > 0:
 		dates = []
 		current = created[0]['created']
-		last = created[len(created) - 1]['created']
+		last = created[len(created)-1]['created']
+		if len(closed) > 0 and closed[len(closed) - 1]['closed'] > created[len(created)-1]['created']:
+			last = closed[len(closed) - 1]['closed']
 		while current <= last:
 			dates.append(current)
 			current = current + timedelta(days=1)		
@@ -101,6 +185,7 @@ def detail(request, customer_id, project_id):
 	context = {'customer': customer, 'project':project, 'summary':summary, 'tracks':tracks, 'priorities':priorities, 'assignees':assignees}
 	return render(request, 'quality/detail.html', context)
 
+@login_required
 def import_csv(request):
 	if request.method == 'POST':
 		form = forms.UploadCsvForm(request.POST, request.FILES)
@@ -120,64 +205,34 @@ def import_csv(request):
 		form = forms.UploadCsvForm()
 		return render(request, 'quality/step1.html', {'form':form})
 
+@login_required
 def load_csv(request):
 	if request.method == 'POST':
 		form = forms.ProcessCvsForm(request.POST)
 		if form.is_valid():
 			issueProcess = models.IssueProcess.objects.get(pk=form.cleaned_data['process_id'])
 			path = UPLOAD_PATH + issueProcess.file
-			shutil.move(path, path+'~')
-			destination = codecs.open(path, encoding="latin1", mode="w+")
-			source = codecs.open(path+'~', encoding="latin1", mode="r+")
-			for line in source:
-			    if line[0] == '"':
-			        length = len(line)
-			        line = line[1:length-3] + '\r\n'
-			    line = line.replace(unichr(225), 'a')
-			    line = line.replace(unichr(233), 'e')
-			    line = line.replace(unichr(237), 'i')
-			    line = line.replace(unichr(243), 'o')
-			    line = line.replace(unichr(250), 'u')
-			    line = line.replace(unichr(241), 'n')
-			    line = line.replace(unichr(193), 'A')
-			    line = line.replace(unichr(201), 'E')
-			    line = line.replace(unichr(205), 'I')
-			    line = line.replace(unichr(211), 'O')
-			    line = line.replace(unichr(218), 'U')
-			    line = line.replace(unichr(209), 'N')
-			    line = line.replace(unichr(145), '\'')
-			    line = line.replace(unichr(146), '\'')
-			    line = line.replace(unichr(147), '"')
-			    line = line.replace(unichr(148), '"')
-			    line = line.replace(unichr(150), '-')
-			    line = line.replace('""', '"')
-			    if line[len(line)-3] == '"':
-			    	line = line[0:len(line)-3] + '\r\n'
-			    destination.write(line)
-			source.close()
-			destination.close()
 			entities = []
-			with open(path) as csvfile:
-				reader = csv.DictReader(csvfile, quotechar='"', doublequote=True)				
-				for row in reader:
-					issueInput = models.IssueInput()
-					issueInput.ref = row['Id']
-					issueInput.project = row['Proyecto']
-					issueInput.informer = row['Informador']
-					issueInput.assignee = row['Asignada a']
-					issueInput.priority = row['Prioridad']
-					issueInput.severity = row['Severidad']
-					issueInput.reproducibility = row['Reproducibilidad']
-					issueInput.product = row['Version del producto']
-					issueInput.category = row['Categoria']
-					issueInput.delivery_date = row['Fecha de envio']
-					issueInput.updated_date = row['Actualizada']
-					issueInput.resume = row['Resumen']
-					issueInput.status = row['Estado']
-					issueInput.resolution = row['Resolucion']
-					issueInput.process = issueProcess
-					entities.append(issueInput)
-				models.IssueInput.objects.bulk_create(entities)
+			rows = parse(path)		
+			for row in rows:
+				issueInput = models.IssueInput()
+				issueInput.ref = row.id
+				issueInput.project = row.project
+				issueInput.informer = row.informer
+				issueInput.assignee = row.assignee
+				issueInput.priority = row.priority
+				issueInput.severity = row.severity
+				issueInput.reproducibility = row.repro
+				issueInput.product = row.version
+				issueInput.category = row.category
+				issueInput.delivery_date = row.creation
+				issueInput.updated_date = row.modification
+				issueInput.resume = row.resume
+				issueInput.status = row.status
+				issueInput.resolution = row.resolution
+				issueInput.process = issueProcess
+				entities.append(issueInput)
+			models.IssueInput.objects.bulk_create(entities)
 			issueProcess.imported = True
 			issueProcess.count = len(entities)
 			issueProcess.dateImported = datetime.now()
@@ -188,13 +243,50 @@ def load_csv(request):
 		context = {'processes':processes}
 		return render(request, 'quality/step2.html', context)
 
+@login_required
 def process_csv(request):
 	if request.method == 'POST':
 		form = forms.ProcessCvsForm(request.POST)
 		if form.is_valid():
-			issueProcess = models.IssueProcess.objects.get(pk=form.cleaned_data['process_id'])
+			process_id = form.cleaned_data['process_id']
+			total = models.IssueInput.objects.filter(process=process_id).count()
+			thread = Thread(target=call_process_issues, args=(process_id,))
+			thread.start()
+		return render(request, 'quality/step3_1.html', {'process_id':process_id, 'total': total})
 	else:
 		processes = models.IssueProcess.objects.filter(imported=True, processed=False)
 		context = {'processes':processes}
 		return render(request, 'quality/step3.html', context)
+
+@login_required
+def count_processed(request, process_id):
+	processed = models.IssueInput.objects.filter(process=process_id, result__gt=0).count()
+	return JsonResponse({'processed':processed})
+
+@login_required
+def results_csv(request):
+	context = {}
+	if request.method == 'POST':
+		form = forms.ProcessCvsForm(request.POST)
+		if form.is_valid():
+			process_id = form.cleaned_data['process_id']
+			process = models.IssueProcess.objects.get(pk=process_id)
+			process.inserted_count = models.IssueInput.objects.filter(process=process_id, result=4).count()
+			process.updated_count = models.IssueInput.objects.filter(process=process_id, result=6).count()
+			process.save()
+			context['process'] = process
+			context['projects_not_found'] =  models.IssueInput.objects.filter(process=process_id, result=1).values('project').annotate(count=Count('project'))
+			context['inputs_with_error'] = models.IssueInput.objects.filter(process=process_id, result__in=[2,3,5])
+	return render(request, 'quality/step4.html', context)
+
+@login_required
+def finish_csv(request):
+	context = {}
+	if request.method == 'POST':
+		form = forms.ProcessCvsForm(request.POST)
+		if form.is_valid():
+			process_id = form.cleaned_data['process_id']
+			models.IssueInput.objects.filter(process=process_id).delete()
+	return render(request, 'quality/step5.html', context)
+
 

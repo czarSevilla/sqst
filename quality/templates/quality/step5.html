@@ -1,0 +1,24 @@
+{% extends "quality/base.html" %}
+
+{% block content %}
+
+<div class="row">
+  <div class="col-sm-12 col-md-12 col-lg-12">
+    <div class="h3" style="text-align: center; font-weight: bolder; color: #337ab7">Import Issues Process</div>
+  </div>
+</div>
+<ul class="nav nav-pills nav-justified">
+  <li role="presentation" class="disabled"><a href="#">Upload Csv <span class="glyphicon glyphicon-open-file" style="font-size:3em;"></span></a></li>
+  <li role="presentation" class="disabled"><a href="#">Import <span class="glyphicon glyphicon-import" style="font-size:3em;"></span></a></li>
+  <li role="presentation" class="disabled"><a href="#">Process <span class="glyphicon glyphicon-refresh" style="font-size:3em;"></span></a></li>
+  <li role="presentation" class="active"><a href="#">Finish <span class="glyphicon glyphicon-ok" style="font-size:3em;"></span></a></li>
+</ul>
+<div class="panel panel-default">
+<div class="panel-body">        
+    
+    <p class="bg-success h4" style="padding: 2em;"> <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>  The process has finished. </p>
+    
+</div>
+</div>
+
+{% endblock %}

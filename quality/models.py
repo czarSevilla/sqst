@@ -66,6 +66,8 @@ class Issue(models.Model):
 	created = models.DateField()
 	resolved = models.DateField(null=True)
 	closed = models.DateField(null=True)
+	source = models.CharField(max_length=100)
+	ref = models.CharField(max_length=20)
 
 	def __str__(self):
 		return self.description
@@ -79,6 +81,8 @@ class IssueProcess(models.Model):
 	dateImported = models.DateTimeField(null=True, blank=True)
 	processed = models.BooleanField(default=False)
 	dateProcessed = models.DateTimeField(null=True, blank=True)
+	inserted_count = models.IntegerField(default=0)
+	updated_count = models.IntegerField(default=0)
 
 
 class IssueInput(models.Model):
@@ -97,19 +101,5 @@ class IssueInput(models.Model):
 	status = models.CharField(max_length=50, null=True, blank=True)
 	resolution = models.CharField(max_length=50, null=True, blank=True)
 	process = models.ForeignKey(IssueProcess)
-
-	def __str__(self):
-		return '''[ref=%s, project=%s informer=%s
-assignee=%s
-priority=%s
-severity=%s
-reproducibility=%s
-product=%s
-category=%s
-delivery_date=%s
-updated_date=%s
-resume=%s
-status=%s
-resolution=%s
-process=%s]''' % (self.ref, self.project, self. informer, self.assignee, self.priority, self.severity, self.reproducibility, self.product, self.category, self.delivery_date, self.updated_date, self.resume, self.status, self.resolution, self.process)
-	
+	result = models.IntegerField(default=0)
+	comments = models.CharField(max_length=200, null=True, blank=True)
