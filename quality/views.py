@@ -21,51 +21,54 @@ COMMA = ','
 
 NUM_TOKENS = 19
 
+NUM_TOKENS_MANTIS_2 = 10
+
 class IssueRow(object):
 
-    def __init__(self, tokens):
-        idx = 0
-        self.id = tokens[idx]
-        idx += 1
-        self.project = tokens[idx]
-        idx += 1
-        self.informer = tokens[idx]
-        idx += 1
-        self.assignee = tokens[idx]
-        idx += 1
-        self.priority = tokens[idx]
-        idx += 1
-        self.severity = tokens[idx]
-        idx += 1
-        self.repro = tokens[idx]
-        idx += 1
-        self.version = tokens[idx]
-        idx += 1
-        self.category = tokens[idx]
-        idx += 1
-        self.creation = tokens[idx]
-        idx += 1
-        self.os = tokens[idx]
-        idx += 1
-        self.os_version = tokens[idx]
-        idx += 1
-        self.platform = tokens[idx]
-        idx += 1
-        self.visibility = tokens[idx]
-        idx += 1
-        self.modification = tokens[idx]
-        idx += 1
-        self.resume = tokens[idx]
-        idx += 1
-        self.status = tokens[idx]
-        idx += 1
-        self.resolution = tokens[idx]
-        idx += 1
-        self.solve = tokens[idx]
-        idx += 1
+	def __init__(self, tokens):
+		if len(tokens) == NUM_TOKENS:
+			self.id = tokens[0]
+			self.project = tokens[1]
+			self.informer = tokens[2]
+			self.assignee = tokens[3]
+			self.priority = tokens[4]
+			self.severity = tokens[5]
+			self.repro = tokens[6]
+			self.version = tokens[7]
+			self.category = tokens[8]
+			self.creation = tokens[9]
+			self.os = tokens[10]
+			self.os_version = tokens[11]
+			self.platform = tokens[12]
+			self.visibility = tokens[13]
+			self.modification = tokens[14]
+			self.resume = tokens[15]
+			self.status = tokens[16]
+			self.resolution = tokens[17]
+			self.solve = tokens[18]
+		else:
+			self.id = tokens[0]
+			self.project = tokens[1]
+			self.creation = tokens[2]
+			self.informer = tokens[3]
+			self.priority = tokens[4]
+			self.severity = tokens[5]
+			self.status = tokens[6]
+			self.resolution = tokens[7]
+			self.assignee = tokens[8]
+			self.modification = tokens[9]
+			self.category = tokens[10]
+			self.resume = ''
+			self.repro = ''
+			self.version = ''
+			self.os = ''
+			self.os_version = ''
+			self.platform = ''
+			self.visibility = ''
+			self.solve = ''
 
 
-def parse(file_csv):
+def parseMantis1(file_csv):
     rows = []
     with codecs.open(file_csv, encoding="latin1", mode="r+") as source:
         is_first = True        
@@ -89,6 +92,28 @@ def parse(file_csv):
                     tokens_left = tokens[0:15]
                     tokens_right = [u'', tokens[-3], tokens[-2], tokens[-1]]
                     rows.append(IssueRow(tokens_left + tokens_right))
+    return rows
+
+
+def parseMantis2(file_csv):
+    rows = []
+    with codecs.open(file_csv, encoding="latin1", mode="r+") as source:
+        is_first = True        
+        for line in source:
+            if is_first:
+                is_first = False
+            else:
+                line = line.strip()
+                if line[0] == '"':
+                    line = line[1:]
+                if line[-1] == '\t':
+                    line = line[:-1]
+                if line[-1] == '"':
+                    line = line[:-1]
+                if line[-1] == '\'':
+                    line = line[:-2]
+                tokens = line.split(COMMA)
+                rows.append(IssueRow(tokens))
     return rows
 
 def call_process_issues(process_id):
@@ -213,7 +238,10 @@ def load_csv(request):
 			issueProcess = models.IssueProcess.objects.get(pk=form.cleaned_data['process_id'])
 			path = UPLOAD_PATH + issueProcess.file
 			entities = []
-			rows = parse(path)		
+			if issueProcess.source == 'local':
+				rows = parseMantis1(path)
+			else:
+				rows = parseMantis2(path)
 			for row in rows:
 				issueInput = models.IssueInput()
 				issueInput.ref = row.id
